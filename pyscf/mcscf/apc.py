@@ -3,10 +3,8 @@
 '''
 APC Ranked-Orbital Active Space Selection
 If you find this module useful for your work, please consider citing the following:
-
 A Ranked-Orbital Approach to Select Active Spaces for High-Throughput Multireference Computation
 https://doi.org/10.1021/acs.jctc.1c00037
-
 Large-Scale Benchmarking of Multireference Vertical-Excitation Calculations via Automated Active-Space Selection
 https://doi.org/10.1021/acs.jctc.2c00630
 '''
@@ -21,7 +19,6 @@ class Chooser():
     Implements the ranked-orbital selection scheme outlined in https://doi.org/10.1021/acs.jctc.1c00037
     Given a set of entropies, will select all orbitals for the active space and then drop the lowest-entropy orbitals
     until the size constraint max_size is met.
-
     Args:
         orbs: 2D Numpy Array
             Orbitals to choose from, spanning the entire basis (must be square matrix of coefficients)
@@ -33,12 +30,9 @@ class Chooser():
             Active space size constraint.
             If tuple, interpreted as (nelecas,ncas)
             If int, interpreted as max # of orbitals
-
     Returns:
         active-space-size, #-active-electrons, orbital-initial-guess, chosen-active-orbital-indeces
-
     Example:
-
     #Randomly ranked orbitals
     >>> import numpy as np
     >>> from pyscf import gto, scf, mcscf
@@ -152,15 +146,17 @@ class Chooser():
             
             nactos = len(os_idx)
             nactdocc = int((nactel - nactos)/2)
-            nactvirt = int((norbs - nactdocc - nactos))
+            nactvirt = int((norbs - nactdocc - nactos))  
             
-            actdocc_idx = docc_idx[np.argsort(entropies[docc_idx][-nactdocc:])]
-            actvirt_idx = virt_idx[np.argsort(entropies[virt_idx][-nactvirt:])]
+            actdocc_idx = docc_idx[np.argsort(entropies[docc_idx])[-nactdocc:]]
+            actvirt_idx = virt_idx[np.argsort(entropies[virt_idx])[-nactvirt:]]
             active_idx = np.hstack([actdocc_idx,os_idx,actvirt_idx]) 
-
+            
+            inactive_idx = np.setdiff1d(docc_idx,actdocc_idx)
+            secondary_idx = np.setdiff1d(virt_idx,actvirt_idx)
+                    
             assert(self._as_is_reasonable(active_idx))
             as_size = self._calc_ncsf(active_idx)
-            print(active_idx)
             print(as_size,max_size)
         else:
             nactel = int(np.sum(np.array(occ)[active_idx]))
@@ -212,11 +208,13 @@ class Chooser():
                         log.debug("Active space becomes unreasonable if this orbital is dropped, trying next option...")
     
                     tries += 1
-    
+        
                 inactive_idx = new_inactive_idx
                 active_idx = new_active_idx
                 secondary_idx = new_secondary_idx
-    
+          #      print("Entropies: ", entropies)
+          #      print("All selected entropies: ", entropies[active_idx])
+
                 #Calculate new NCSFs:
                 if isinstance(self.max_size,tuple):
                     nactel,norbs = self.max_size
@@ -250,10 +248,8 @@ class APC():
     APC Class
     Implements APC orbital entropy estimation from https://doi.org/10.1021/acs.jctc.1c00037
     APC-N implemented from https://doi.org/10.1021/acs.jctc.2c00630
-
     .kernel() combines this with the ranked-orbital scheme implemented in Chooser() to select
     an active space of size max_size from the orbitals in mf.mo_coeff with occupancy mf.mo_occ
-
     Args:
         mf: an :class:`SCF` object
             Must expose mf.mo_coeff, mf.mo_occ, mf.get_fock(), and mf.get_k()
@@ -264,14 +260,11 @@ class APC():
         n: Int
             Number of times to remove highest-entropy virtual orbitals in entropy calculation.
             A higher value will tend to select active spaces with less doubly occupied orbitals.
-
     Kwargs:
         eps: Float
             Small offset added to singly occupied and removed virtual orbital entropies (can generally be ignored)
-
     Returns:
         active-space-size, #-active-electrons, orbital-initial-guess (following AVAS convention)
-
     Example:
     >>> import numpy as np
     >>> from pyscf import gto, scf, mcscf
@@ -297,7 +290,6 @@ class APC():
         """
         Calculates APC entropies for given orbitals, occupations, and F and K matrix elements
         Singly occupied orbitals are set to max value of other orbitals + self.eps
-
         Args:
             orbs: 2D Numpy Array
                 A nbasis x nmo array of candidate AS orbitals
@@ -363,7 +355,6 @@ class APC():
         Implements the "APC-N" approach in which high-entropy virtual orbitals are repeatedly set to singly occupied
         Then sets the singly occupied orbitals and previously removed orbitals to high values
         Reads the value of n from self.n
-
         Args:
             mf: an :class:`SCF` object
                 Must expose mf.mo_coeff, mf.mo_occ, mf.get_fock(), and mf.get_k()
@@ -451,6 +442,5 @@ class APC():
         nactorbs, nactel, casorbs, active_idx = chooser.kernel()
         self.active_idx = active_idx
         return nactorbs, nactel, casorbs
-
 
 
